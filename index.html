@@ -485,7 +485,7 @@
   const PRIVACY={
     purpose:'웰니스스테이션 이용 신청·승인 및 이용 현황 관리·통계',
     items:'성명, 학과, 학번 (이용 날짜·시설·출입/퇴실 시간 기록 포함)',
-    retention:''   // 예: '1년(해당 학년도 종료 시까지)'  ← 반드시 확인 후 입력
+    retention:'1년(해당 학년도 종료 시까지)'   // 담당 부서 확인 완료(1년)
   };
   function esc(v){return String(v==null?'':v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
   document.getElementById('consent-box').innerHTML=
@@ -611,5 +611,305 @@
     this.value=this.value.replace(/\D/g,'').slice(0,9);
   });
 </script>
+<!-- ═══════════════════════════════════════════════════════════
+     [추가] 한국어 / English 화면 전환 (웰니스스테이션)
+     - 기존 코드는 수정하지 않고, 이 블록만 </body> 바로 앞에 추가했습니다.
+     - 화면에 보이는 글자만 번역하며, 서버로 전송되는 값(학과·학년·결제방법 등)은 항상 한국어 원본 그대로입니다.
+     - 블록 전체를 삭제하면 원래 상태로 돌아갑니다.
+     ═══════════════════════════════════════════════════════════ -->
+<script>
+(function(){
+  'use strict';
+
+  var STORE_KEY = 'yuhan_ws_ui_lang';
+  var lang = 'ko';
+  try { lang = (localStorage.getItem(STORE_KEY) === 'en') ? 'en' : 'ko'; } catch(e){}
+  try { var _q = new URLSearchParams(location.search).get('lang'); if (_q === 'en' || _q === 'ko') lang = _q; } catch(e){}
+
+  var TITLE_KO = document.title;
+  var TITLE_EN = 'Yuhan University Wellness Station';
+
+  var DAY_EN = {'일':'Sun','월':'Mon','화':'Tue','수':'Wed','목':'Thu','금':'Fri','토':'Sat'};
+  var MON_EN = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  var ORD_EN = {'1':'1st','2':'2nd','3':'3rd'};
+
+  /* ── 학과명 (유한대학교 영문 홈페이지 https://www.yuhan.ac.kr/en/ 의 Academics 표기 기준, 없는 학과는 조직 영문 명칭 엑셀 기준)
+        ※ ★ 표시는 정확히 일치하는 공식 명칭이 없어 추정한 것이니, 확인 후 오른쪽 값만 고치세요 ── */
+  var DEPT = {
+    // Dept. of Interdisciplinary Studies
+    '자유전공학과':'Dept. of Interdisciplinary Studies',
+    // School of Engineering
+    '기계시스템전공':'Mechanical Engineering Major','소방설비안전전공':'Fire Protection & Safety Major',
+    '전기공학전공':'Electrical Engineering Major','전자공학전공':'Electronic Engineering Major',
+    '컴퓨터소프트웨어전공':'Computer Software Major','게임콘텐츠전공':'Game Contents Major','인공지능전공':'Artificial Intelligence Major',
+    // School of Design & Culture
+    '산업디자인전공':'Industrial Design Major','시각디자인전공':'Visual Design Major','패션디자인전공':'Fashion Design Major',
+    '실내건축전공':'Interior Architecture Major','광고미디어전공':'Advertising & Media Major','방송영상전공':'Media Production Major',
+    '애니메이션웹툰전공':'Animation & Webtoon Major','방송문예창작전공':'Broadcasting Literature Major','방송연예전공':'Broadcasting Entertainment Major',
+    // School of Health & Wellness Services
+    '식품영양학과':'Dept. of Food & Nutrition','보건의료행정학과':'Dept. of Health Services Administration',
+    '작업치료과':'Dept. of Occupational Therapy','반려동물보건학과':'Dept. of Companion Animal Health',
+    '응급구조과':'Dept. of Paramedicine','치위생과':'Dept. of Dental Hygiene',
+    // School of Well-Being
+    '유한바이오제약전공':'Yuhan Biopharmaceutics Major','유한생명화공전공':'Yuhan Biochemical Engineering Major',
+    '피부메이크업전공':'Skin & Makeup Major','뷰티화장품전공':'Beauty & Cosmetic Major','사회복지전공':'Social Welfare Major',
+    '스포츠재활전공':'Sports Rehabilitation Major','반려동물산업전공':'Companion Animal Industry Major',
+    '호텔조리전공':'Hotel Culinary Arts Major','카페베이커리전공':'Cafe & Bakery Major',
+    // School of Business Administration
+    '호텔관광전공':'Hotel & Tourism Management Major','일본비즈니스전공':'Japan Business Major',
+    '경영정보전공':'Management Information Systems Major','세무회계전공':'Tax & Accounting Major',
+    '항공서비스학과':'Dept. of Airline Services',
+    // 홈페이지에 없는 학과 → '대학 조직 영문 명칭 변경(2023.6.1 시행)' 엑셀 기준
+    '컴퓨터정보통신전공':'Computer, Information & Communication Major','IT비즈니스전공':'IT Business Major',
+    '아동보육전공':'Child Care Major','산업안전전공':'Industrial Safety Major','항공경영전공':'Airline Management Major',
+    // 전공심화(학사) 과정 → 엑셀의 학과 영문명 뒤에 (Advanced) 표기 (★ 엑셀에 정확히 일치하는 항목이 없어 추정한 것)
+    '기계시스템공학과(심화)':'Dept. of Mechanical Engineering (Advanced)',
+    '시각디자인학과(심화)':'Dept. of Visual Design (Advanced)',
+    '보건의료행정학과(심화)':'Dept. of Health Services Administration (Advanced)',
+    '패션디자인학과(심화)':'Dept. of Fashion Design (Advanced)',
+    '실내건축학과(심화)':'Dept. of Interior Architecture (Advanced)',
+    '사회복지학과(심화)':'Social Welfare Major (Advanced)',          // ★
+    '유한바이오제약학과(심화)':'Yuhan Biopharmaceutics Major (Advanced)', // ★
+    '컴퓨터공학과(심화)':'Dept. of Computer Science & Engineering (Advanced)' // ★
+  };
+
+  /* ── 메뉴명 (새 메뉴가 생기면 여기에 한 줄 추가하세요. 없으면 한글 그대로 표시됩니다) ── */
+  var MENU = {
+    '천원의 랍스타(특식)':'1,000-Won Lobster (Special)','햄치즈밥버거':'Ham & Cheese Rice Burger','닭갈비 참치마요':'Dakgalbi Tuna Mayo',
+    '닭갈비+참치마요':'Dakgalbi + Tuna Mayo','오므라이스(햄)':'Omurice (Ham)','빅치킨마요':'Big Chicken Mayo',
+    '제육돈까스도련님':'Spicy Pork & Pork Cutlet Bowl','돈까스도련님':'Pork Cutlet Bowl','돈까스카레':'Pork Cutlet Curry',
+    '김치제육':'Kimchi Spicy Pork','든든한끼구성':'Hearty Meal Set','김치소불고기':'Kimchi Bulgogi',
+    '치즈제육':'Cheese Spicy Pork','햄치즈':'Ham & Cheese'
+  };
+
+  /* ── 자주 쓰이는 단어 ── */
+  var WORDS = {
+    '카카오뱅크':'KakaoBank','토스뱅크':'Toss Bank','봉구스':'Bonggus','한솥':'Hansot',
+    '계좌이체':'Bank Transfer','현금지급':'Cash','현금 지급':'Cash','정보 없음':'No information'
+  };
+
+  /* ── 화면 문구 (문장 전체가 일치할 때 번역) ── */
+  var EXACT = {
+    // 헤더 · 안내바 · 마스코트
+    '유한대학교':'Yuhan University','웰니스스테이션 이용신청':'Wellness Station Application',
+    '⚠️ 신청 후 관리자 승인 후 이용 가능합니다 · 평일 09:00~17:40':'Available after admin approval · Weekdays 09:00–17:40',
+    '신청 후 관리자 승인 후 이용 가능합니다 · 평일 09:00~17:40':'Available after admin approval · Weekdays 09:00–17:40',
+    '안녕하세요! 웰니스스테이션에 오신 걸 환영해요 🎵':'Hello! Welcome to the Wellness Station 🎵',
+    '안녕하세요! 웰니스스테이션에 오신 걸 환영해요':'Hello! Welcome to the Wellness Station',
+    '학생회관 4층 · Wellness Station':'Student Hall, 4th Floor · Wellness Station',
+    // 기본 정보
+    '기본 정보':'Basic Information','사용 날짜':'Date of Use','학과':'Department','학번':'Student ID','(9자리)':'(9 digits)','성명':'Name',
+    '-- 학과를 선택하세요 --':'-- Select your department --',
+    '예: 202312345':'e.g. 202312345','이름을 입력하세요':'Enter your name',
+    '날짜를 선택해주세요.':'Please select a date.','학과를 선택해주세요.':'Please select your department.',
+    '학번은 9자리 숫자로 입력해주세요.':'Please enter your 9-digit student ID (digits only).','성명을 입력해주세요.':'Please enter your name.',
+    // 시설
+    '희망 이용 시설':'Facilities to Use','인생네컷':'Photo Booth (Life 4-Cut)','코인노래방':'Coin Karaoke','탁구장':'Table Tennis Room','헬스장':'Gym',
+    '최소 1개 이상 선택해주세요.':'Please select at least one.',
+    // 시간
+    '이용 시간':'Time of Use','출입 시간':'Entry Time','신청 순간의 시간이 자동 기록됩니다':'The time you apply is recorded automatically',
+    '퇴실 시간':'Exit Time','🔒 관리자 전용':'🔒 Admin only','관리자 전용':'Admin only',
+    // 개인정보
+    '개인정보 수집·이용 동의':'Consent to Collection & Use of Personal Information',
+    '수집·이용 목적':'Purpose of collection / use','수집 항목':'Items collected','보유 및 이용 기간':'Retention period',
+    '웰니스스테이션 이용 신청·승인 및 이용 현황 관리·통계':'Wellness Station application, approval, and usage management / statistics',
+    '성명, 학과, 학번 (이용 날짜·시설·출입/퇴실 시간 기록 포함)':'Name, department, student ID (including date, facility and entry/exit times)',
+    '1년(해당 학년도 종료 시까지)':'1 year (until the end of the academic year)',
+    '【1년(해당 학년도 종료 시까지)】':'[1 year (until the end of the academic year)]',
+    '※ 동의를 거부할 권리가 있으며, 동의하지 않으면 웰니스스테이션 이용 신청이 제한됩니다.':'* You have the right to refuse. If you do not agree, you cannot apply to use the Wellness Station.',
+    '동의함':'I agree','동의하지 않음':'I do not agree',
+    '개인정보 수집·이용에 동의해야 신청할 수 있습니다.':'You must agree to the collection and use of personal information to apply.',
+    // 버튼 · 푸터
+    '✅ 이용 신청하기':'✅ Submit Application','이용 신청하기':'Submit Application','⏳ 신청 중...':'⏳ Submitting...','신청 중...':'Submitting...',
+    '유한대학교 웰니스스테이션 · 학생회관 4층':'Yuhan University Wellness Station · Student Hall, 4th Floor',
+    '이용시간: 평일 09:00~17:40 · 문의: 학생복지팀(02-2610-0331)':'Hours: Weekdays 09:00–17:40 · Inquiries: Student Welfare Team (02-2610-0331)',
+    // 완료
+    '신청 완료!':'Application Complete!','이용 신청이 접수되었습니다.':'Your application has been received.','관리자 승인 후 이용 가능합니다.':'You can use the facilities after admin approval.',
+    '⏳ 승인 대기 중':'⏳ Awaiting approval','승인 대기 중':'Awaiting approval',
+    '접수번호':'Receipt No.','날짜':'Date','시설':'Facilities','입실':'Entry','상태':'Status',
+    '확인 · 새 신청하기':'OK · New Application',
+    // 이용 안내
+    '🏫 유한대학교':'🏫 Yuhan University','웰니스스테이션 이용 안내':'Wellness Station Guide',
+    '이용 전 필수 사항':'Required Before Use','이용 전':'Before use','이용 전 출입대장 작성':'Fill in the entry log before use','이용 후 퇴실시간 작성':'Write your exit time after use',
+    '1. 인생네컷':'1. Photo Booth (Life 4-Cut)','2. 노래방':'2. Karaoke','3. 탁구장':'3. Table Tennis Room','4. 헬스장':'4. Gym',
+    '사용자 모두 출입대장 작성':'All users must fill in the entry log',
+    '이용시간 : ~ 17:40까지 이용가능':'Hours: available until 17:40',
+    '이용시간은 최대 30분을 넘을 수 없음':'Maximum use time is 30 minutes',
+    '이용시간 : ~ 17:40까지 퇴실':'Hours: exit by 17:40',
+    '탁구장 이용에 신발 제한 없음':'No shoe restrictions in the table tennis room',
+    '탁구 공은 깨지면 보유중인 공으로 교체':'Broken table tennis balls are replaced with spare balls',
+    '이용시 라켓 셋트 지급 후 나갈 때 반납':'A racket set is provided on entry – return it when you leave',
+    '이용시간은 최대 1시간, ~ 17:40까지 퇴실':'Maximum use time is 1 hour; exit by 17:40',
+    '대장작성시 전용 신발 준비 여부 확인':'When filling in the log, confirm you have your own gym shoes',
+    '탈의실내 사물함은 사용법 확인 후 이용':'Check how to use the changing-room lockers before using them',
+    '개인짐은 사물함에 정리':'Store personal belongings in a locker',
+    '운동 후 장비 제자리 정리':'Return equipment to its place after exercising',
+    '장소 : 학생회관 4층 (Wellness Station)':'Location: Student Hall, 4th Floor (Wellness Station)',
+    '이용 시간 : 평일 09:00 ~ 17:40':'Hours: Weekdays 09:00 – 17:40',
+    '✅ 확인했습니다 · 새 신청하기':'✅ Got it · New Application',
+    '서버 응답을 읽을 수 없습니다. 잠시 후 다시 시도해주세요.':'Could not read the server response. Please try again shortly.',
+    '서버 오류':'Server error'
+  };
+  var k;
+  for (k in DEPT) EXACT[k] = DEPT[k];
+  for (k in MENU) EXACT[k] = MENU[k];
+  for (k in WORDS) if (!Object.prototype.hasOwnProperty.call(EXACT, k)) EXACT[k] = WORDS[k];
+
+  /* ── 문장 속 일부분 치환용 (긴 것부터) ── */
+  var FRAG = {};
+  for (k in DEPT) FRAG[k] = DEPT[k];
+  for (k in MENU) FRAG[k] = MENU[k];
+  for (k in WORDS) FRAG[k] = WORDS[k];
+  var fragKeys = Object.keys(FRAG).sort(function(a,b){ return b.length - a.length; });
+  var FRAG_RE = new RegExp(fragKeys.map(function(s){ return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }).join('|'), 'g');
+
+  function dateKr(s){
+    return s.replace(/(\d{4})년 (\d{1,2})월 (\d{1,2})일/g, function(m,y,mo,d){
+      return MON_EN[+mo - 1] + ' ' + (+d) + ', ' + y;
+    });
+  }
+
+  var PATTERNS = [
+    [/^(\d{4}\.\d{2}\.\d{2}) \(([일월화수목금토])\)$/, function(m){ return m[1] + ' (' + DAY_EN[m[2]] + ')'; }],
+    [/^신청하지 못했습니다\.\n([\s\S]*)$/, function(m){ return 'Your application could not be submitted.\n' + trRest(m[1]); }],
+    [/^현재 시간: (.*)$/, function(m){ return 'Current time: ' + m[1]; }],
+    [/^(\d{1,2}\/\d{1,2})\(([일월화수목금토])\)$/, function(m){ return m[1] + '(' + DAY_EN[m[2]] + ')'; }],
+    [/^(\d{1,2})월 (\d{1,2})일 \(([일월화수목금토])\) 메뉴$/, function(m){ return MON_EN[+m[1] - 1] + ' ' + (+m[2]) + ' (' + DAY_EN[m[3]] + ') Menu'; }],
+    [/^(\d{4}년 \d{1,2}월 \d{1,2}일) 메뉴 미리보기$/, function(m){ return 'Menu preview for ' + dateKr(m[1]); }],
+    [/^학번은 9자리로 입력해주세요\.\n현재 (\d+)자리 입력됨$/, function(m){ return 'Student ID must be 9 digits.\nCurrently ' + m[1] + ' digits entered.'; }],
+    [/^신청 시간이 아닙니다\.\n(\d{1,2}:\d{2}) 이후부터 신청 가능합니다\.$/, function(m){ return 'Applications are not open yet.\nYou can apply from ' + m[1] + '.'; }],
+    [/^이미 (\d{4}년 \d{1,2}월 \d{1,2}일) 신청이 완료된 학번입니다\.$/, function(m){ return 'This student ID has already applied for ' + dateKr(m[1]) + '.'; }]
+  ];
+
+  function trRest(rest){
+    var i, m;
+    for (i = 0; i < PATTERNS.length; i++){
+      m = rest.match(PATTERNS[i][0]);
+      if (m) return PATTERNS[i][1](m);
+    }
+    if (Object.prototype.hasOwnProperty.call(EXACT, rest)) return EXACT[rest];
+    var out = rest.replace(FRAG_RE, function(x){ return FRAG[x]; });
+    out = dateKr(out);
+    out = out.replace(/(\d)학년/g, function(x, n){ return (ORD_EN[n] || n + 'th') + ' year'; });
+    out = out.replace(/(\d[\d,]*)원/g, '$1 KRW');
+    return out;
+  }
+
+  function tr(s){
+    if (!/[가-힣]/.test(s)) return s;
+    var lead = s.match(/^\s*/)[0];
+    var trail = s.slice(lead.length).match(/\s*$/)[0];
+    var core = s.slice(lead.length, s.length - trail.length);
+    if (!core) return s;
+    if (Object.prototype.hasOwnProperty.call(EXACT, core)) return lead + EXACT[core] + trail;
+    var pm = core.match(/^([^\p{L}\p{N}]*)([\s\S]*)$/u);   // 앞쪽 이모지·기호는 그대로 두고 뒤쪽 글자만 번역
+    return lead + pm[1] + trRest(pm[2]) + trail;
+  }
+
+  /* ── 화면 글자 교체 ── */
+  var orig = new WeakMap();   // 텍스트 노드 → 한국어 원문
+  var mine = new WeakMap();   // 텍스트 노드 → 내가 넣은 영어 (내 변경 감지용)
+  var phOrig = new WeakMap(); // 입력칸 → placeholder 원문
+
+  function skipNode(node){
+    var p = node.parentNode;
+    if (!p) return true;
+    var t = p.nodeName;
+    if (t === 'SCRIPT' || t === 'STYLE' || t === 'TEXTAREA' || t === 'NOSCRIPT') return true;
+    return !!(p.closest && p.closest('[data-no-i18n]'));
+  }
+  function procText(node){
+    if (skipNode(node)) return;
+    var cur = node.data;
+    if (mine.has(node) && mine.get(node) === cur) return;
+    orig.set(node, cur);
+    var t = tr(cur);
+    if (t !== cur){ mine.set(node, t); node.data = t; }
+  }
+  function walk(root){
+    if (root.nodeType === 3){ procText(root); return; }
+    if (root.nodeType !== 1) return;
+    var w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null, false), n;
+    while ((n = w.nextNode())) procText(n);
+  }
+  function restoreAll(){
+    var w = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null, false), n;
+    while ((n = w.nextNode())){
+      if (mine.has(n) && mine.get(n) === n.data && orig.has(n)){ n.data = orig.get(n); mine.delete(n); }
+    }
+  }
+  function procAttr(el){
+    if (!phOrig.has(el)) phOrig.set(el, el.getAttribute('placeholder'));
+    el.setAttribute('placeholder', tr(phOrig.get(el)));
+  }
+  function restoreAttr(el){
+    if (phOrig.has(el)) el.setAttribute('placeholder', phOrig.get(el));
+  }
+
+  /* ── 학과·학년 선택값은 항상 한국어 원본으로 고정 (서버 전송값 보호) ── */
+  ['dept','grade'].forEach(function(id){
+    var sel = document.getElementById(id);
+    if (!sel) return;
+    Array.prototype.forEach.call(sel.options, function(o){ o.value = o.value; });
+  });
+
+  /* ── 전환 버튼 ── */
+  var css = document.createElement('style');
+  css.textContent =
+    '#langToggleBtn{position:fixed;top:calc(6px + env(safe-area-inset-top,0px));right:8px;z-index:400;' +
+    'padding:3px 10px;border-radius:999px;border:1.5px solid rgba(255,255,255,.85);background:rgba(15,23,42,.35);' +
+    'color:#fff;font:700 11px/1.4 "Noto Sans KR",sans-serif;cursor:pointer;-webkit-tap-highlight-color:transparent;' +
+    '-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px)}' +
+    '#langToggleBtn:active{opacity:.75}';
+  document.head.appendChild(css);
+
+  var btn = document.createElement('button');
+  btn.type = 'button';
+  btn.id = 'langToggleBtn';
+  btn.setAttribute('data-no-i18n', '');
+  document.body.appendChild(btn);
+
+  function updateBtn(){
+    btn.textContent = (lang === 'en') ? '한국어' : 'EN';
+    btn.setAttribute('aria-label', (lang === 'en') ? '한국어로 보기' : 'Switch to English');
+  }
+
+  function setLang(l){
+    lang = l;
+    try { localStorage.setItem(STORE_KEY, l); } catch(e){}
+    document.documentElement.lang = l;
+    if (l === 'en'){
+      walk(document.body);
+      Array.prototype.forEach.call(document.querySelectorAll('[placeholder]'), procAttr);
+      document.title = TITLE_EN;
+    } else {
+      restoreAll();
+      Array.prototype.forEach.call(document.querySelectorAll('[placeholder]'), restoreAttr);
+      document.title = TITLE_KO;
+    }
+    updateBtn();
+  }
+  btn.addEventListener('click', function(){ setLang(lang === 'en' ? 'ko' : 'en'); });
+
+  /* ── 영어 모드에서 새로 그려지는 화면(날짜탭·메뉴·완료창 등)도 자동 번역 ── */
+  new MutationObserver(function(recs){
+    if (lang !== 'en') return;
+    recs.forEach(function(r){
+      if (r.type === 'characterData') procText(r.target);
+      else Array.prototype.forEach.call(r.addedNodes, walk);
+    });
+  }).observe(document.body, {childList:true, subtree:true, characterData:true});
+
+  /* ── 알림창(alert) 문구도 같은 언어로 표시 ── */
+  var _alert = window.alert;
+  window.alert = function(msg){
+    return _alert.call(window, (lang === 'en') ? tr(String(msg)) : msg);
+  };
+
+  updateBtn();
+  if (lang === 'en') setLang('en');
+})();
+</script>
+
 </body>
 </html>
